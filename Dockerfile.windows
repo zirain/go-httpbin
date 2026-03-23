@@ -1,4 +1,4 @@
-FROM golang:1.26-windowsservercore AS build
+FROM golang:1.26 AS build
 
 # Proxy settings
 ARG HTTP_PROXY
@@ -12,7 +12,8 @@ WORKDIR /go/src/github.com/mccutchen/go-httpbin
 
 COPY . .
 
-RUN go build -ldflags="-s -w" -o dist/go-httpbin.exe ./cmd/go-httpbin
+# Cross-compile for Windows
+RUN CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/go-httpbin.exe ./cmd/go-httpbin
 
 FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
 
