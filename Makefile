@@ -40,6 +40,11 @@ buildtests:
 	CGO_ENABLED=0 go test -ldflags="-s -w" -v -c -o $(DIST_PATH)/go-httpbin.test ./httpbin
 .PHONY: buildtests
 
+build.windows:
+	mkdir -p $(DIST_PATH)
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o $(DIST_PATH)/go-httpbin.exe ./cmd/go-httpbin
+.PHONY: build.windows
+
 clean:
 	rm -rf $(DIST_PATH) $(COVERAGE_PATH) .integrationtests
 .PHONY: clean
@@ -93,14 +98,15 @@ watch:
 # =============================================================================
 
 image.buildx:
-	docker buildx rm httpbin | docker buildx create --name httpbin
+	docker buildx rm httpbin 2>/dev/null || true
+	docker buildx create --name httpbin
 
 .PHONY: image
 image: image.buildx
 	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform linux/amd64 -t $(DOCKER_TAG) .
 
 .PHONY: image.build
-image.build: image.buildx
+image.build: build.windows image.buildx
 	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform linux/amd64 -t $(DOCKER_TAG)-linux-amd64 .
 	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform linux/arm64 -t $(DOCKER_TAG)-linux-arm64 .
 	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform windows/amd64 -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
@@ -111,12 +117,13 @@ image.build: image.buildx
 	docker buildx rm httpbin
 
 .PHONY: image.push
-image.push: image.buildx
+image.push: build.windows image.buildx
 	docker buildx build $(DOCKER_BUILD_ARGS) --push --platform linux/amd64,linux/arm64 -t $(DOCKER_TAG) .
 	docker buildx build $(DOCKER_BUILD_ARGS) --push --platform windows/amd64 -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
 	docker buildx rm httpbin
 
 .PHONY: image.windows
-image.windows: image.buildx
-	docker buildx build $(DOCKER_BUILD_ARGS) --platform windows/amd64 -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
+image.windows: build.windows image.buildx
+	# Build the windows image using pre-built binary
+	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform windows/amd64 -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
 

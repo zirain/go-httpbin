@@ -1,13 +1,5 @@
 FROM golang:1.26 AS build
 
-# Proxy settings
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG NO_PROXY
-ARG http_proxy
-ARG https_proxy
-ARG no_proxy
-
 WORKDIR /go/src/github.com/mccutchen/go-httpbin
 
 COPY . .

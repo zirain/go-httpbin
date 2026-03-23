@@ -1,23 +1,7 @@
-FROM golang:1.26 AS build
-
-# Proxy settings
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG NO_PROXY
-ARG http_proxy
-ARG https_proxy
-ARG no_proxy
-
-WORKDIR /go/src/github.com/mccutchen/go-httpbin
-
-COPY . .
-
-# Cross-compile for Windows
-RUN CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/go-httpbin.exe ./cmd/go-httpbin
-
 FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
 
-COPY --from=build /go/src/github.com/mccutchen/go-httpbin/dist/go-httpbin.exe /go-httpbin.exe
+# Copy pre-built Windows binary from host
+COPY dist/go-httpbin.exe /go-httpbin.exe
 
 EXPOSE 8080
 CMD ["/go-httpbin.exe"]
