@@ -31,6 +31,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       
@@ -66,10 +71,15 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           echo "Tagging images as latest..."
-          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            ${{ steps.meta.outputs.docker_tag }}
+          # Create latest tags from platform-specific images
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-linux \
+            ${{ steps.meta.outputs.docker_tag }}-linux
           docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-windows \
             ${{ steps.meta.outputs.docker_tag }}-windows
+          # Create unified latest tag with all platforms
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-linux \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-windows
       
       - name: Summary
         run: |
@@ -78,9 +88,11 @@ jobs:
           echo "**Version:** \`${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Images:**" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ steps.meta.outputs.docker_tag }}\` (linux/amd64, linux/arm64)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ steps.meta.outputs.docker_tag }}\` (linux/amd64, linux/arm64, windows/amd64)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ steps.meta.outputs.docker_tag }}-linux\` (linux/amd64, linux/arm64)" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ steps.meta.outputs.docker_tag }}-windows\` (windows/amd64)" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` (linux/amd64, linux/arm64, windows/amd64)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-linux\`" >> $GITHUB_STEP_SUMMARY
             echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-windows\`" >> $GITHUB_STEP_SUMMARY
           fi

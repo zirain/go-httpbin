@@ -118,8 +118,11 @@ image.build: build.windows image.buildx
 
 .PHONY: image.push
 image.push: build.windows image.buildx
-	docker buildx build $(DOCKER_BUILD_ARGS) --push --platform linux/amd64,linux/arm64 -t $(DOCKER_TAG) .
-	docker buildx build $(DOCKER_BUILD_ARGS) --push --platform windows/amd64 -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
+	# Build and push platform-specific images
+	docker buildx build $(DOCKER_BUILD_ARGS) --push --platform linux/amd64,linux/arm64 --provenance=false -t $(DOCKER_TAG)-linux .
+	docker buildx build $(DOCKER_BUILD_ARGS) --push --platform windows/amd64 --provenance=false -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
+	# Create unified manifest list
+	docker buildx imagetools create -t $(DOCKER_TAG) $(DOCKER_TAG)-linux $(DOCKER_TAG)-windows
 	docker buildx rm httpbin
 
 .PHONY: image.windows
