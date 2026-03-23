@@ -1,7 +1,9 @@
 # The version that will be used in docker tags (e.g. to push a
 # go-httpbin:latest image use `make imagepush VERSION=latest)`
 VERSION    ?= $(shell git rev-parse --short HEAD)
-DOCKER_TAG ?= mccutchen/go-httpbin:$(VERSION)
+DOCKER_TAG ?= ghcr.io/zirain/go-httpbin:$(VERSION)
+
+DOCKER_BUILD_ARGS ?=
 
 # Built binaries will be placed here
 DIST_PATH  	  ?= dist
@@ -89,13 +91,32 @@ watch:
 # =============================================================================
 # docker images
 # =============================================================================
-image:
-	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TAG) .
-.PHONY: image
 
-imagepush:
-	docker buildx create --name httpbin
-	docker buildx use httpbin
-	docker buildx build --push --platform linux/amd64,linux/arm64 -t $(DOCKER_TAG) .
+image.buildx:
+	docker buildx rm httpbin | docker buildx create --name httpbin
+
+.PHONY: image
+image: image.buildx
+	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform linux/amd64 -t $(DOCKER_TAG) .
+
+.PHONY: image.build
+image.build: image.buildx
+	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform linux/amd64 -t $(DOCKER_TAG)-linux-amd64 .
+	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform linux/arm64 -t $(DOCKER_TAG)-linux-arm64 .
+	docker buildx build $(DOCKER_BUILD_ARGS) --load --platform windows/amd64 -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
+	@echo "Built images:"
+	@echo "  $(DOCKER_TAG)-linux-amd64"
+	@echo "  $(DOCKER_TAG)-linux-arm64"
+	@echo "  $(DOCKER_TAG)-windows"
 	docker buildx rm httpbin
-.PHONY: imagepush
+
+.PHONY: image.push
+image.push: image.buildx
+	docker buildx build $(DOCKER_BUILD_ARGS) --push --platform linux/amd64,linux/arm64 -t $(DOCKER_TAG) .
+	docker buildx build $(DOCKER_BUILD_ARGS) --push --platform windows/amd64 -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
+	docker buildx rm httpbin
+
+.PHONY: image.windows
+image.windows: image.buildx
+	docker buildx build $(DOCKER_BUILD_ARGS) --platform windows/amd64 -f Dockerfile.windows -t $(DOCKER_TAG)-windows .
+

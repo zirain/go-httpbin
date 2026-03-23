@@ -1,0 +1,22 @@
+FROM golang:1.26-windowsservercore AS build
+
+# Proxy settings
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+WORKDIR /go/src/github.com/mccutchen/go-httpbin
+
+COPY . .
+
+RUN go build -ldflags="-s -w" -o dist/go-httpbin.exe ./cmd/go-httpbin
+
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
+
+COPY --from=build /go/src/github.com/mccutchen/go-httpbin/dist/go-httpbin.exe /go-httpbin.exe
+
+EXPOSE 8080
+CMD ["/go-httpbin.exe"]
